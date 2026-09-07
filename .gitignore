@@ -1,0 +1,30 @@
+# Local environments and caches
+.venv/
+.cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+node_modules/
+.env
+
+# Original and not-yet-human-audited corpus: never commit by default
+/文档平台用测试文档.zip
+/data/raw/
+/data/processed/samples/
+/data/processed/sanitized/
+/data/processed/retrieval/
+/data/corpus_manifest.csv
+/data/corpus_manifest.json
+
+# Generated working artifacts
+/_staging/
+/outputs/
+/reports/*_data.json
+/reports/*_check.json
+/reports/*_eval.json
+
+# Local editor / OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
