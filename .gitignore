@@ -21,7 +21,7 @@ node_modules/
 /outputs/
 /reports/*_data.json
 /reports/*_check.json
-/reports/*_eval.json
+/reports/*_eval*.json
 
 # Local editor / OS files
 .idea/

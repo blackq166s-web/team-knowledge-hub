@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('setup', 'model-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval')]
+    [ValidateSet('setup', 'model-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval')]
     [string]$Action
 )
 
@@ -42,5 +42,6 @@ switch ($Action) {
     'bm25-eval'    { & $Python (Join-Path $ProjectRoot 'src\bm25_baseline.py') $ProjectRoot evaluate --top-k 5 }
     'vector-build' { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot build }
     'vector-eval'  { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot evaluate --top-k 5 }
+    'hybrid-eval'  { & $Python (Join-Path $ProjectRoot 'src\hybrid_baseline.py') $ProjectRoot evaluate --top-k 5 }
 }
 exit $LASTEXITCODE

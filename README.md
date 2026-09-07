@@ -21,12 +21,15 @@
 .\scripts\kb.ps1 bm25-build
 .\scripts\kb.ps1 vector-build
 .\scripts\kb.ps1 vector-eval
+.\scripts\kb.ps1 hybrid-eval
 ```
 
 模型下载默认使用 ModelScope，只下载 BGE-M3 稠密检索所需文件。模型、虚拟环境和 Qdrant 本地库都能重新生成，因此不进入 Git。
 
 ## 当前检索链路
 
-`脱敏 Markdown → 切块 → BM25S 关键词检索 / BGE-M3 语义向量 → Qdrant 存储与权限过滤 → 15 道题评测`
+`脱敏 Markdown → 切块 → BM25S 关键词检索 + BGE-M3/Qdrant 语义检索 → RRF 合并排名 → 15 道题评测`
 
 当前 ACL 只是 PoC 夹具：六份语料统一为 `fde-core`，其他用户组在检索前被拦截。
+
+当前混合召回使用等权 RRF：Top 5 为 11/15，Top 10 为 13/15。它的作用是扩大候选覆盖；下一阶段由 Rerank 从 Top 10 中选出最终 Top 5。
