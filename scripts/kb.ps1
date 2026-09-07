@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('setup', 'model-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval')]
+    [ValidateSet('setup', 'model-download', 'reranker-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval', 'rerank-eval')]
     [string]$Action
 )
 
@@ -33,6 +33,17 @@ if ($Action -eq 'model-download') {
     exit $LASTEXITCODE
 }
 
+if ($Action -eq 'reranker-download') {
+    $ModelDir = Join-Path $ProjectRoot '.cache\modelscope\bge-reranker-v2-m3'
+    if (-not (Test-Path -LiteralPath (Join-Path $ModelDir '.git'))) {
+        $env:GIT_LFS_SKIP_SMUDGE = '1'
+        git clone --depth 1 https://www.modelscope.cn/AI-ModelScope/bge-reranker-v2-m3.git $ModelDir
+        Remove-Item Env:\GIT_LFS_SKIP_SMUDGE -ErrorAction SilentlyContinue
+    }
+    git -C $ModelDir lfs pull --include='model.safetensors,sentencepiece.bpe.model,tokenizer.json'
+    exit $LASTEXITCODE
+}
+
 if (-not (Test-Path -LiteralPath $Python)) {
     throw '尚未创建虚拟环境，请先运行：.\scripts\kb.ps1 setup'
 }
@@ -43,5 +54,6 @@ switch ($Action) {
     'vector-build' { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot build }
     'vector-eval'  { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot evaluate --top-k 5 }
     'hybrid-eval'  { & $Python (Join-Path $ProjectRoot 'src\hybrid_baseline.py') $ProjectRoot evaluate --top-k 5 }
+    'rerank-eval'  { & $Python (Join-Path $ProjectRoot 'src\rerank_baseline.py') $ProjectRoot evaluate --top-k 5 --hybrid-top-k 10 }
 }
 exit $LASTEXITCODE
