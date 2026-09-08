@@ -8,6 +8,8 @@ version = "0.1.0"
 description = "A traceable and testable team knowledge base proof of concept"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+  "streamlit==1.63.0",
+  "pypdf==6.18.0",
   "bm25s==0.3.11",
   "httpx>=0.28,<1",
   "jieba==0.42.1",

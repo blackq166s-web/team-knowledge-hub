@@ -1,58 +1,73 @@
-# 团队知识库 PoC
+# 团队知识库 v0.1
 
-目标：把脱敏资料做成可追溯、可评测、可迁移的团队知识库。当前只验证检索，不代表已完成大模型回答或真实权限接入。
+本机个人管理初版：资料管理、混合检索、DeepSeek 问答、历史反馈和模拟新题。面向持续开发与本机试用，尚无团队登录或远程部署。
 
-## 目录
-
-- `src/`：解析、脱敏、检索和评测代码
-- `eval/`：15 道种子评测题
-- `reports/`：验证结论
-- `data/`：本机语料与可重建索引，不提交 Git
-- `_staging/`：临时文件，不提交 Git
-- `STATUS.md`：当前结果和下一步
-
-## 新电脑恢复
-
-使用私有 Git 仓库克隆代码；再通过安全渠道复制原始资料或人工审计后的脱敏语料。不要把内部资料推到公开仓库。
+## 启动网页
 
 ```powershell
+cd D:\03_个人事务\FDE\知识库
 .\scripts\kb.ps1 setup
-.\scripts\kb.ps1 model-download
-.\scripts\kb.ps1 reranker-download
-.\scripts\kb.ps1 bm25-build
-.\scripts\kb.ps1 vector-build
-.\scripts\kb.ps1 vector-eval
-.\scripts\kb.ps1 hybrid-eval
-.\scripts\kb.ps1 rerank-eval
-.\scripts\kb.ps1 decompose-eval
+.\scripts\kb.ps1 web
 ```
 
-模型下载默认使用 ModelScope，只下载 BGE-M3 稠密检索所需文件。模型、虚拟环境和 Qdrant 本地库都能重新生成，因此不进入 Git。
+安装好后每次只需运行 `web`，打开 http://127.0.0.1:8501 。服务只监听本机。关闭启动终端或按 Ctrl+C 停止服务。
 
-## 当前检索链路
+## 第一次怎么用
 
-`脱敏 Markdown → 切块 → BM25S 关键词检索 + BGE-M3/Qdrant 语义检索 → RRF 合并 Top 10 → BGE Rerank 选 Top 5 → 15 道题评测`
+1. 打开“知识问答”，选择一道模拟题，点击“查找资料”。默认完全在本机检索，不需要 API。
+2. 展开来源查看片段和原文位置；也可去“资料管理”预览或下载完整 Markdown。
+3. 在左侧输入新建的 DeepSeek API Key，点击“测试 API 连接”。接口固定为 https://api.deepseek.com/chat/completions，模型默认 deepseek-v4-flash，可修改并保存模型名。
+4. 核对资料片段，勾选发送许可，点击“根据资料生成答案”。生成回答最多发送 5 个片段，每片段前 1600 字；图像不发送。
+5. 如需 AI 拆分复杂问题，勾选左侧拆分选项后重新检索。拆分阶段仅发送问题和产品名。
+6. 到“问答历史”查看记录、导出结果、填写质量反馈。
 
-当前 ACL 只是 PoC 夹具：六份语料统一为 `fde-core`，其他用户组在检索前被拦截。
+密钥仅存当前网页会话，不保存到代码、历史或配置文件。“清除密钥”可清空；浏览器刷新重建会话后可能需要重新输入。不要把 Key 发到聊天或提交 Git。
 
-当前混合召回使用等权 RRF：Top 10 为 13/15。BGE Rerank 重排后的 Top 5 为 12/15，本机 CPU 平均重排约 13.8 秒/题。加入 DeepSeek 复杂问题拆分、原范围继承和文档结构词增强后，种子集 Top 5 为 15/15；该结果仍需在新增盲测题上复验。
+## 资料管理
 
-## DeepSeek 问题拆分测试
+- 上传：支持 UTF-8 Markdown/TXT、DOCX 正文和表格、文字型 PDF；单文件 10MB，提取文字 2MB，PDF 最多 100 页。
+- 预处理：原上传文件和转换文字留在 `_staging/uploads/`，相同内容重复上传会提示。
+- 登记：先预览并确认脱敏，再选择所属产品与文档类型，登记到本机语料区。
+- 编辑：支持编辑 Markdown 正文，需保留顶部元信息；旧版本自动备份。
+- 归档：将文件移动到可恢复的归档区，不永久删除；支持恢复，同名冲突会提示。
+- 更新索引：上传、编辑、归档后需要手动点击。两路索引先在独立目录构建，成功后才替换现用索引，旧索引保留。
+- 资料和索引不一致时暂停问答，防止用过期资料回答。
 
-DeepSeek 只接收用户问题和允许识别的产品名，不接收知识库正文。无权限用户会在调用 API 前被拦截；简单问题不调用 API；接口失败、输出不合法或遗漏产品标识时自动回退到原问题。
+暂不支持旧版 DOC、扫描 PDF OCR、图片语义、复杂排版的高保真还原。导入后的正文和表格需要人工抽查。首次 CPU 建索引可能需要数分钟；不要同时运行命令行检索占用本地 Qdrant。
 
-在本机 PowerShell 临时设置密钥后运行评测（不要把密钥写入仓库）：
+## 模拟题与评测边界
+
+20 道模拟新题首次启动时自动生成到 `_staging/20260908_网页模拟题/questions.json`；已有文件不会覆盖。网页支持选题和下载。
+
+模拟题还没有标准证据标注，不是盲测通过结果。旧 15 道种子题经多轮调试后的检索结果为 15/15；这只证明已知题的检索覆盖。生成答案的事实正确性、引用是否真正支持结论，需要另行验收。
+
+## 目录与迁移
+
+- `src/`：网页、资料管理、API、检索与评测。
+- `tests/`：单元测试、网页操作测试与真实索引流程验收。
+- `eval/`：原 15 道种子题。
+- `reports/`：可提交的结论与验收边界。
+- `data/raw/`：只读原文。
+- `data/processed/sanitized/`：已脱敏可检索副本。
+- `data/processed/retrieval/`：可重建 BM25/Qdrant 索引。
+- `data/app/`：本机历史、反馈、模型设置、资料版本、归档、索引状态；不提交 Git。
+- `_staging/`：模拟题草稿、上传原稿、索引构建与备份；不提交 Git。
+- `.cache/` 和 `.venv/`：模型与运行环境，不提交 Git。
+
+另一台电脑：克隆 Git 后运行 setup；通过安全渠道复制 data 和所需 _staging 文件，模型可复制 .cache 或重新下载。不要复制 .venv。重新运行 web；如果没有索引，从资料管理更新。不要同时用两台电脑修改同一份本地 Qdrant 库。
+
+## 开发与验证
 
 ```powershell
-$secureKey = Read-Host 'DeepSeek API Key' -AsSecureString
-$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $secureKey).Password
-try {
-    $env:DEEPSEEK_MODEL = 'deepseek-v4-flash'
-    .\scripts\kb.ps1 decompose-eval
-} finally {
-    Remove-Item Env:\DEEPSEEK_API_KEY -ErrorAction SilentlyContinue
-    $secureKey.Dispose()
-}
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe tests\verify_web.py
+.\.venv\Scripts\python.exe tests\verify_lifecycle.py
 ```
 
-结果写入本机忽略文件 `reports/deepseek_decomposition_eval.json`。必须确认其中 `deepseek_success_count` 大于 0，才能称为完成了 DeepSeek 实测。当前 15 道种子题实测为 15/15，DeepSeek 平均拆分约 3.90 秒；这不是新增真实问题的业务验收结论。
+网页测试会使用本机实际索引并产生试用历史；索引流程测试在独立临时目录使用合成资料，加载本机 BGE-M3，不修改正式语料。运行网页测试前避免在网页同时发起检索。
+
+命令行入口保留：model-download、reranker-download、bm25-build、vector-build、bm25-eval、vector-eval、hybrid-eval、rerank-eval、decompose-eval。命令行更新语料后建议从网页再更新索引，使应用状态一致。
+
+当前网页默认使用 BM25S + BGE-M3/Qdrant 混合检索，可选择 DeepSeek 拆分；慢速 CPU Rerank 不放入默认网页链路。
+
+生成接口依据 [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/)实现。程序验证引用编号有效、API 错误可见、证据不足时支持拒答，但这些校验不等于回答语义正确。详见 reports/v0.1_acceptance.md。

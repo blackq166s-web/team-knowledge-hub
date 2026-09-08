@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('setup', 'model-download', 'reranker-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval', 'rerank-eval', 'decompose-eval')]
+    [ValidateSet('setup', 'model-download', 'reranker-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval', 'rerank-eval', 'decompose-eval', 'web')]
     [string]$Action
 )
 
@@ -49,6 +49,7 @@ if (-not (Test-Path -LiteralPath $Python)) {
 }
 
 switch ($Action) {
+    'web' { & $Python -m streamlit run (Join-Path $ProjectRoot 'src\web_app.py') --server.address 127.0.0.1 --server.port 8501 --server.headless true --browser.gatherUsageStats false }
     'bm25-build'   { & $Python (Join-Path $ProjectRoot 'src\bm25_baseline.py') $ProjectRoot build }
     'bm25-eval'    { & $Python (Join-Path $ProjectRoot 'src\bm25_baseline.py') $ProjectRoot evaluate --top-k 5 }
     'vector-build' { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot build }

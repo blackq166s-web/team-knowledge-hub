@@ -33,8 +33,9 @@ class DecomposedHybridRetriever:
         *,
         decomposer: Decomposer | None = None,
         per_query_k: int = 10,
+        hybrid: HybridRetriever | None = None,
     ) -> None:
-        self.hybrid = HybridRetriever(root, candidate_k=20)
+        self.hybrid = hybrid if hybrid is not None else HybridRetriever(root, candidate_k=20)
         self.decomposer = decomposer or DeepSeekDecomposer()
         self.per_query_k = per_query_k
 
