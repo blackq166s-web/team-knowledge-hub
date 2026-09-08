@@ -22,6 +22,7 @@ node_modules/
 # Generated working artifacts
 /_staging/
 /outputs/
+/.playwright-cli/
 /reports/*_data.json
 /reports/*_check.json
 /reports/*_eval*.json

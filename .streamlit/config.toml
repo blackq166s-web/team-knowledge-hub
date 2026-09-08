@@ -1,0 +1,8 @@
+# The application provides its own persisted light/dark switch.
+# Keep native canvas widgets predictable for the CSS dark adaptation.
+[theme]
+base = "light"
+primaryColor = "#2563eb"
+
+[client]
+toolbarMode = "minimal"
