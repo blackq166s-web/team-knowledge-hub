@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet('setup', 'model-download', 'reranker-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval', 'rerank-eval')]
+    [ValidateSet('setup', 'model-download', 'reranker-download', 'bm25-build', 'bm25-eval', 'vector-build', 'vector-eval', 'hybrid-eval', 'rerank-eval', 'decompose-eval')]
     [string]$Action
 )
 
@@ -55,5 +55,6 @@ switch ($Action) {
     'vector-eval'  { & $Python (Join-Path $ProjectRoot 'src\vector_baseline.py') $ProjectRoot evaluate --top-k 5 }
     'hybrid-eval'  { & $Python (Join-Path $ProjectRoot 'src\hybrid_baseline.py') $ProjectRoot evaluate --top-k 5 }
     'rerank-eval'  { & $Python (Join-Path $ProjectRoot 'src\rerank_baseline.py') $ProjectRoot evaluate --top-k 5 --hybrid-top-k 10 }
+    'decompose-eval' { & $Python (Join-Path $ProjectRoot 'src\decomposed_hybrid_eval.py') $ProjectRoot evaluate --top-k 5 --per-query-k 10 }
 }
 exit $LASTEXITCODE
