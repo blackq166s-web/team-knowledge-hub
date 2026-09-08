@@ -7,20 +7,30 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / "src"))
 app = AppTest.from_file(str(root / "src" / "web_app.py"), default_timeout=90).run()
 assert not app.exception, app.exception
-app.selectbox(key="sample").select("W001 的总功耗要求是多少？").run()
+next(b for b in app.button if b.label == "W001 的总功耗要求是多少？").click().run()
+assert app.text_area(key="question_input").value == "W001 的总功耗要求是多少？"
+assert not app.selectbox
 next(b for b in app.button if b.label == "查找资料").click().run(timeout=90)
 assert not app.exception, app.exception
 assert "search" in app.session_state
 assert len(app.session_state["search"]["results"]) > 0
 assert not app.session_state["allow_send"]
-next(b for b in app.button if b.label == "根据资料生成答案").click().run()
-assert any("确认" in e.value for e in app.error)
+assert next(b for b in app.button if b.label == "生成最终回答").disabled
 app.checkbox(key="allow_send").check().run()
 with patch("secure_credentials.load_key", return_value="test-only-value"), patch("answer_service.request_json", return_value=({"refused":False,"claims":[{"text":"自动化测试模拟响应，不是业务答案","citations":[1]}]}, {"total_tokens":20}, 0.01)):
-    next(b for b in app.button if b.label == "根据资料生成答案").click().run()
+    app.run()
+    next(b for b in app.button if b.label == "生成最终回答").click().run()
 assert not app.exception, app.exception
 assert "answer" in app.session_state
 assert app.session_state["answer"][1]["total_tokens"] == 20
+assert any(h.value == "最终回答" for h in app.subheader)
+next(b for b in app.button if b.label == "提交评价").click().run()
+assert any("已保存" in s.value for s in app.success)
+next(b for b in app.button if b.label == "新问题").click().run()
+assert "answer" not in app.session_state and "search" not in app.session_state
+assert app.text_area(key="question_input").value == ""
+next(b for b in app.button if b.label == "查找资料").click().run()
+assert any("先写下" in w.value for w in app.warning)
 app.radio(key="nav").set_value("系统设置").run()
 app.text_input(key="api_key").set_value("test-only-value").run()
 with patch("secure_credentials.save_key") as save:

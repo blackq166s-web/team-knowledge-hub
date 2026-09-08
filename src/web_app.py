@@ -7,8 +7,8 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from answer_service import connection_test, generate_answer
-from app_store import initialize_snapshot, index_dirty, save_history, histories, feedback, read_json, write_json
+from answer_service import connection_test
+from app_store import initialize_snapshot, histories, feedback, read_json, write_json
 from sample_questions import ensure_questions
 from secure_credentials import load_key, save_key, delete_key
 from ui_theme import apply_theme
@@ -160,97 +160,5 @@ if page == "模拟题库":
     st.markdown("**资料更新**：上传和修改后点击更新索引，归档也需更新索引。更新期间不能并行运行命令行检索。")
     st.markdown("**迁移**：Git 只带代码。另行安全复制 data、_staging/uploads、模拟题草稿；可复制 .cache 节省下载。不要复制 .venv，换电脑重新 setup。")
     st.stop()
-st.caption("先查本机资料，再由 DeepSeek 根据证据回答；默认检索不需要 API。")
-if not active_key:
-    st.info("还未配置 API：可先查资料。需要生成答案时，进入左侧「系统设置」保存密钥。")
-split = st.checkbox("用 DeepSeek 拆分复杂问题", value=False)
-st.caption("开启拆分会发送问题与产品名；回答前会另行征求资料片段发送许可。")
-
-if index_dirty(ROOT):
-    st.warning("资料已变更或索引未建立。请前往资料管理更新索引，再开始问答。")
-    st.stop()
-
-questions_path = ROOT / "_staging" / "20260908_网页模拟题" / "questions.json"
-questions = json.loads(questions_path.read_text(encoding="utf-8")) if questions_path.exists() else []
-st.selectbox("模拟新题（也可以自行输入）", ["自行输入"] + [q["question"] for q in questions], key="sample")
-with st.form("search_form"):
-    query = st.text_area("你的问题", value="", placeholder="留空可使用上方模拟题", max_chars=1000)
-    submitted = st.form_submit_button("查找资料", type="primary")
-if submitted:
-    query = query.strip() or (st.session_state.sample if st.session_state.sample != "自行输入" else "")
-    if not query:
-        st.warning("请输入问题或选择一道模拟题。")
-    elif split and not active_key:
-        st.warning("请先输入 API Key，或取消问题拆分。")
-    else:
-        st.session_state["allow_send"] = False
-        st.session_state.pop("answer", None)
-        st.session_state.pop("search", None)
-        try:
-            with st.spinner("加载模型并检索资料，首次运行稍慢…"):
-                hybrid, lock = resources()
-                with lock:
-                    if split:
-                        from deepseek_decomposition import DeepSeekDecomposer
-                        from decomposed_hybrid_eval import DecomposedHybridRetriever
-                        retriever = DecomposedHybridRetriever(ROOT, hybrid=hybrid, decomposer=DeepSeekDecomposer(
-                            api_key=active_key, model=model, base_url="https://api.deepseek.com"))
-                        result = retriever.search(query, "fde-core", 5)
-                    else:
-                        result = hybrid.search(query, "fde-core", 5)
-            st.session_state.search = result
-            st.session_state.history_id = save_history(ROOT, query, result["results"])
-        except Exception:
-            st.error("检索未完成。请确认本机索引已建立，并关闭占用 Qdrant 的命令行评测后重试。")
-
-if "search" in st.session_state:
-    result = st.session_state.search
-    st.subheader("找到的资料")
-    st.write(result["query"])
-    if result.get("decomposition"):
-        d = result["decomposition"]
-        st.caption(f"问题拆分状态：{d['status']} · {d['latency_ms']/1000:.2f} 秒")
-        for q in d["subqueries"]:
-            st.write(q)
-    evidence = result["results"]
-    answer_column, evidence_column = st.columns([3, 2], gap="large")
-    with evidence_column:
-        st.subheader("参考来源")
-        st.caption("核对这些原文后，再授权生成答案。")
-        for i, item in enumerate(evidence, 1):
-            with st.expander(f"[{i}] {item['source_file']} · {item['section']}", expanded=i == 1):
-                st.caption(item["locator"])
-                st.text(item["text"][:1600])
-                if len(item["text"]) > 1600:
-                    st.caption("此处展示与发送前 1600 字；完整内容可从资料管理查看。")
-    if not evidence:
-        st.info("未找到可访问的资料。")
-    allowed = answer_column.checkbox("允许将参考来源中最多 5 个脱敏片段发送给 DeepSeek，用于本次回答", key="allow_send")
-    if answer_column.button("根据资料生成答案", disabled=not evidence, type="primary"):
-        st.session_state.pop("answer", None)
-        try:
-            with st.spinner("DeepSeek 正在根据证据回答…"):
-                st.session_state.answer = generate_answer(result["query"], evidence, active_key, model, allow_send=allowed)
-                answer, usage, seconds = st.session_state.answer
-                st.session_state.history_id = save_history(ROOT, result["query"], evidence, answer, usage, seconds)
-        except ValueError as exc:
-            st.error(str(exc))
-    if "answer" in st.session_state:
-        answer, usage, seconds = st.session_state.answer
-        answer_column.subheader("回答")
-        if answer["refused"]:
-            answer_column.warning(answer["message"])
-        else:
-            for claim in answer["claims"]:
-                answer_column.write(claim["text"] + " " + " ".join(f"[{i}]" for i in claim["citations"]))
-        answer_column.caption(f"生成耗时 {seconds} 秒 · {usage.get('total_tokens', '未知')} tokens；编号对应右侧原文，引用存在不等于语义正确，请核对。")
-        answer_column.download_button("下载本次结果", json.dumps({"question":result["query"], "answer":answer,
-            "sources":[{"id":i,"file":x["source_file"],"locator":x["locator"]} for i,x in enumerate(evidence,1)],
-            "usage":usage}, ensure_ascii=False, indent=2), "kb-answer.json", "application/json")
-with st.expander("怎么使用 / 如何换电脑"):
-    st.write("1. 先选择模拟题，点击查找资料；此步骤默认不需要 API。")
-    st.write("2. 在系统设置保存新的 DeepSeek API Key，点击测试 API 连接，以后无需重复输入。")
-    st.write("3. 核对找到的片段，勾选发送许可，再点击根据资料生成答案。")
-    st.write("4. 如需复杂问题拆分，勾选左侧选项并重新检索。")
-    st.code(".\\scripts\\kb.ps1 web", language="powershell")
-    st.write("换电脑：克隆 Git，运行 setup，安全复制本机资料并重建索引。模型和密钥不随 Git 迁移。")
+from question_page import render_question_page
+render_question_page(ROOT, resources, active_key, model, navigate)
